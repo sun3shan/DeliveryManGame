@@ -11,9 +11,9 @@ import time
 
 
 class Environment:
-    def __init__(self, data, map_shape=(12,12)):
+    def __init__(self, data, rival, map_shape=(12,12)):
         self.map_shape = map_shape
-        self.map = gen_map(map_shape, data['walls'], data['player2'])
+        self.map = gen_map(map_shape, data['walls'], rival)
         self.path = {}
         self.dist = {}
         self.getAllPaths()
@@ -64,6 +64,7 @@ def gen_map(map_shape, walls, rival, jobs = None):
     mymap = np.zeros(map_shape, dtype='int')
     for wall in walls:
         mymap[wall['x'], wall['y']] = int(-1)
+    mymap[rival['home_x'], rival['home_y']] = int(-1)
     if jobs is None:
         return mymap
     for job in jobs:
