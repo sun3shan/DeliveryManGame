@@ -11,9 +11,8 @@ import time
 
 
 class Environment:
-    def __init__(self, data, max_step=12, map_shape=(12,12)):
+    def __init__(self, data, map_shape=(12,12)):
         self.map_shape = map_shape
-        self.max_step = max_step
         self.map = gen_map(map_shape, data['walls'], data['player2'])
         self.path = {}
         self.dist = {}
@@ -29,18 +28,17 @@ class Environment:
                     self.getPathByDijstra((x,y))
                     
     def getPathByDijstra(self, cur_pos):
-#        self.map = gridmap
         r,c = self.map_shape
-        self.dist[cur_pos] = np.zeros((r,c),'int')+ self.max_step + 1000
+        self.dist[cur_pos] = np.zeros((r,c),'int') + 1000
         self.dist[cur_pos][cur_pos] = 0
         self.path[cur_pos] = {}
-        self.path[cur_pos][cur_pos] = []
+        self.path[cur_pos][cur_pos] = ()
         matrix = deepcopy(self.map)
         foo_obs = lambda x,y: matrix[int(x),int(y)]<0
         
         d = 0
         nodes = [cur_pos]
-        while np.max(matrix) != -1 and d <= self.max_step:
+        while np.max(matrix) != -1:
             d += 1
             nodes = [key for key in self.path[cur_pos].keys() if matrix[key]!=-1]
             for p in nodes:
@@ -49,11 +47,10 @@ class Environment:
                     if x<0 or y<0 or x>=r or y>=c or foo_obs(x,y) or matrix[q] == -1:
                         continue
                     self.dist[cur_pos][q] = d
-                    self.path[cur_pos][q] = deepcopy(self.path[cur_pos][p])
+                    self.path[cur_pos][q] = list(self.path[cur_pos][p])
                     self.path[cur_pos][q].append(q)
-#                    nodes.append(q)
+                    self.path[cur_pos][q] = tuple(self.path[cur_pos][q])
                 matrix[p] = -1
-#            nodes = deepcopy(new_nodes)
                     
 
     def dist2target(self, cur_pos, t):
@@ -67,7 +64,6 @@ def gen_map(map_shape, walls, rival, jobs = None):
     mymap = np.zeros(map_shape, dtype='int')
     for wall in walls:
         mymap[wall['x'], wall['y']] = int(-1)
-    mymap[rival['home_x'], rival['home_y']] = int(-1)
     if jobs is None:
         return mymap
     for job in jobs:

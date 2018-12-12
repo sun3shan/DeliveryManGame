@@ -10,119 +10,174 @@ import random
 from Environment import Environment
 map_shape = (12, 12)
 DIR = ['U', 'D', 'L', 'R', 'S']
+
+def path2dir(cur_pos, next_pos):
+    dx = next_pos[0] - cur_pos[0]
+    dy = next_pos[1] - cur_pos[1]
+    if dx==-1 and dy==0:
+        return 0
+    elif dx==1 and dy==0:
+        return 1
+    elif dx==0 and dy==-1:
+        return 2
+    elif dx==0 and dy==1:
+        return 3
+    else:
+        return 4
+        
 class Stategy:
-    def __init__(self, player):
+    def __init__(self, player, jdata=None):
         self.state = 'init'
         self.name = player
         self.step = 0
         self.job_changed = True
+        self.home_dist = 0
+        self.Targets = []
+        self.plan_benefit = 0
+        if not(jdata is None):
+            self.get_info(jdata)
     
-    def gen_map(self, map_shape, jobs, walls, rival):
+    def gen_map(self, map_shape):
         self.map = np.zeros(map_shape, dtype='int')
-        for wall in walls:
+        for wall in self.walls:
             self.map[wall['x'], wall['y']] = int(-1)
-        self.map[rival['home_x'], rival['home_y']] = int(-1)
-        for job in jobs:
+        self.map[self.rival['home_x'], self.rival['home_y']] = int(-1)
+        for job in self.jobData:
             self.map[job['x'], job['y']] = int(job['value'])
             
-    def update_map(self, jobs):
-        if self.jobs != jobs:
+    def update_map(self, jobData):
+        if self.jobData != jobData:
             self.job_changed = True
-            for job in jobs:
+            for job in jobData:
                 self.map[job['x'], job['y']] = int(job['value'])
         else:
             self.job_changed = False
-        dx = self.own['x'] - self.rival['x']
-        dy = self.own['y'] - self.rival['y']
-        if abs(dx) + abs(dy) == 1:
-            self.map[self.rival['x'], self.rival['y']] = -1
     
     def get_info(self, jdata):
+        # 判断自己是否到达第一个目标点
+        if len(self.Targets)>1 and self.Targets[0]==self.own_cur_pos:
+            self.Targets.pop(0)
+            self.plan_benefit -= self.map[self.own_cur_pos]
         if self.state == 'init':
+            # 获取环境任两点路径
+            self.env = Environment(jdata)
+            # 判定我和对手所属玩家
             if jdata['player1']['name'] == self.name:
                 self.own_player = 'player1'
                 self.rival_player = 'player2'
             else:
                 self.own_player = 'player2'
                 self.rival_player = 'player1'
-                
+            
+            # 获取自己和对手的信息
             self.own = jdata[self.own_player]
             self.rival = jdata[self.rival_player]
+            # 获取自己和对手家的位置
             self.own_home = (self.own['home_x'], self.own['home_y'])
             self.rival_home = (self.rival['home_x'], self.rival['home_y'])
+            # 获取障碍信息
             self.walls = jdata['walls']
-            self.jobs = jdata['jobs']
-            self.gen_map(map_shape, self.jobs, self.walls, self.rival)
+            # 获取包裹信息
+            self.jobData = jdata['jobs']
+            # 生成地图
+            self.gen_map(map_shape)
+            # 游戏状态开始
             self.state = 'start'
         else:
+            # 获取自己和对手的信息
             self.own = jdata[self.own_player]
             self.rival = jdata[self.rival_player]
+            
+            # 更新地图
             self.update_map(jdata['jobs'])
-            self.jobs = jdata['jobs']
+            # 更新包裹信息
+            self.jobData = jdata['jobs']
+            # 步数加1
+            self.step += 1
+        # 获取自己和对手位置坐标
         self.own_cur_pos = (self.own['x'], self.own['y'])
         self.rival_cur_pos = (self.rival['x'], self.rival['y'])
+        # 获取地图上包裹位置，并按距离排序
+        self.jobs = self.jobsSort(self.jobData)
+        # 获取自己和对手包裹数
         self.own_n_jobs = self.own['n_jobs']
+        self.rival_n_jobs = self.own['n_jobs']
+        
+        # 获取自己得分
         self.own_value = self.own['value']
         self.own_score = self.own['score']
-        self.env = Environment(jdata)
         
-    def path2dir(self, cur_pos, next_pos):
-        dx = next_pos[0] - cur_pos[0]
-        dy = next_pos[1] - cur_pos[1]
-        if dx==-1 and dy==0:
-            return 0
-        elif dx==1 and dy==0:
-            return 1
-        elif dx==0 and dy==-1:
-            return 2
-        elif dx==0 and dy==1:
-            return 3
-        else:
-            return 4
+        
+
         
     def onStep(self, jdata):
         self.get_info(jdata)
         
-        candidate = {}
+        # 判断是否回家获取回家路径和长度
         if self.own_cur_pos != self.own_home or self.own_n_jobs != 0:
-            home_dist = self.env.dist[self.own_cur_pos][self.own_home]
-            if home_dist>= 200 - self.step - 2 or self.own_n_jobs == 10:
-                self.path = self.env.path[self.own_cur_pos][self.own_home]
-                return DIR[self.path2dir(self.own_cur_pos, self.path[0])]
+            self.home_dist = self.env.dist[self.own_cur_pos][self.own_home]
+            if self.home_dist== 200 - self.step or self.own_n_jobs == 10:
+                self.Targets.insert(0, self.own_home)
+                return DIR[path2dir(self.own_cur_pos, self.env.path[self.own_cur_pos][self.Targets[0]][0])]
+            
+        # 如果地图包裹发生变化 或 没有目标
+        if self.job_changed == True or len(self.Targets)==0:
+            # 路径规划
+            self.testAssess()
+            if len(self.Targets)>0 and self.Targets[0]!=self.own_home and (self.env.dist[self.own_cur_pos][self.Targets[0]['job']] == self.env.dist[self.own_cur_pos][self.own_home] +self.env.dist[self.own_home][self.Targets[0]['job']]):
+                self.Targets.insert(0, self.own_home)
+        return DIR[path2dir(self.own_cur_pos, self.env.path[self.own_cur_pos][self.Targets[0]['job']][0])]
+
+          
+    def testAssess(self):        
+        # 获取地图获取level个包裹的所有走法和步数
+        Targets = self.getAllTargets(self.jobs, self.own_cur_pos, 200-self.step, level = min(4, 10-self.own_n_jobs))
         
-        if self.job_changed == False:
-            if len(self.path)>1:
-                self.path.pop(0)
-                return DIR[self.path2dir(self.own_cur_pos, self.path[0])]
-        for job in self.jobs:
-            job_pos = (job['x'], job['y'])
-            own_dist = self.AllPath[self.own_cur_pos].dist2target(job_pos)
-            rival_dist = self.AllPath[self.rival_cur_pos].dist2target(job_pos)
-            if own_dist<=rival_dist:
-                path = self.env.path[self.own_cur_pos][job_pos]
-                x_range = [node[0] for node in path]
-                y_range = [node[1] for node in path]
-                if not(self.own_cur_pos[0] in x_range):
-                    x_range.append(self.own_cur_pos[0])
-                if not(self.own_cur_pos[1] in y_range):
-                    y_range.append(self.own_cur_pos[1])
-                candidate[job_pos] = [(sub_job['x'], sub_job['y']) for sub_job in jobs if sub_job!=job and sub_job['x'] in x_range and sub_job['y'] in y_range]
-        if len(candidate)>0:
-            sorted_candidate = sorted(candidate.items(),key = lambda x:x[1],reverse = True)
-            self.path = self.own_dijstra.path2target(sorted_candidate[0][0])
-#            print(path)
-            return DIR[self.own_dijstra.path2dir(self.own_cur_pos, self.path[0])]
-        else:
-            self.path = self.own_dijstra.path2target(self.own_home)
-            if len(self.path)>0:
-                return DIR[self.own_dijstra.path2dir(self.own_cur_pos, self.path[0])]
+        Benefit = [sum([self.map[t['job']] - t['step'] for t in target]) for target in Targets]
+        
+        maxBenefit = max(Benefit)
+        
+        if maxBenefit > self.plan_benefit:
+            self.Targets = Targets[Benefit.index(maxBenefit)]
+            self.plan_benefit = maxBenefit
+        
+        
+            
+            
+        
+    
+    def jobsSort(self, jobData):
+        jobs = [(job['x'], job['y']) for job in jobData]
+        steps = dict(sorted({job: self.env.dist[self.own_cur_pos][job] for job in jobs}.items(), key=lambda x:x[1]))
+        return tuple(steps.keys())
+    
+    def getAllTargets(self, jobs, cur_pos, residualStep=10, step = 0, level=0):
+        Target = []
+        target = []
+        i = 0
+        for job in jobs:
+            # 如果当前点——拿到包裹——回家的距离大于剩余步数，不考虑该包裹
+            if self.env.dist[cur_pos][job] + self.env.dist[job][self.own_home] > residualStep or \
+               (self.rival_n_jobs<10 and self.env.dist[self.rival_cur_pos][job] < step + self.env.dist[cur_pos][job]):
+                continue
+            target = [{'job': job, 'step':self.env.dist[cur_pos][job]}]
+            if level == 0:
+                Target.append(target)
             else:
-                print('..')
-                return random.choice(DIR)
+                subJobs = list(jobs)
+                subJobs.remove(job)
+                for item in self.getAllTargets(subJobs, job, residualStep - self.env.dist[cur_pos][job], step + self.env.dist[cur_pos][job], level=level-1):
+                    Target.append(list(target))
+                    Target[-1].extend(item)
+                Target.append(list(target))
+            i += 1
+        return Target
+        
+        
             
 if __name__ == '__main__':
     data = {'player1': {'name': 'p1', 'x': 1, 'y': 6, 'home_x': 5, 'home_y': 5, 'n_jobs': 1, 'value': 12.0, 'score': 0}, 'player2': {'name': 'p2', 'x': 6, 'y': 6, 'home_x': 6, 'home_y': 6, 'n_jobs': 0, 'value': 0, 'score': 0}, 'walls': [{'x': 0, 'y': 1}, {'x': 0, 'y': 6}, {'x': 1, 'y': 1}, {'x': 1, 'y': 4}, {'x': 1, 'y': 11}, {'x': 2, 'y': 1}, {'x': 2, 'y': 7}, {'x': 2, 'y': 8}, {'x': 2, 'y': 10}, {'x': 3, 'y': 8}, {'x': 5, 'y': 1}, {'x': 6, 'y': 0}, {'x': 6, 'y': 4}, {'x': 6, 'y': 7}, {'x': 6, 'y': 10}, {'x': 7, 'y': 4}, {'x': 7, 'y': 5}, {'x': 7, 'y': 10}, {'x': 8, 'y': 1}, {'x': 9, 'y': 3}, {'x': 9, 'y': 11}, {'x': 10, 'y': 2}, {'x': 10, 'y': 8}, {'x': 11, 'y': 8}], 'jobs': [{'x': 0, 'y': 2, 'value': 7.0}, {'x': 0, 'y': 8, 'value': 9.0}, {'x': 1, 'y': 3, 'value': 6.0}, {'x': 1, 'y': 5, 'value': 6.0}, {'x': 1, 'y': 9, 'value': 10.0}, {'x': 2, 'y': 4, 'value': 8.0}, {'x': 3, 'y': 9, 'value': 10.0}, {'x': 4, 'y': 0, 'value': 8.0}, {'x': 4, 'y': 4, 'value': 6.0}, {'x': 4, 'y': 8, 'value': 7.0}, {'x': 5, 'y': 0, 'value': 8.0}, {'x': 5, 'y': 3, 'value': 7.0}, {'x': 6, 'y': 2, 'value': 10.0}, {'x': 7, 'y': 0, 'value': 11.0}, {'x': 7, 'y': 6, 'value': 10.0}, {'x': 8, 'y': 0, 'value': 12.0}, {'x': 8, 'y': 5, 'value': 12.0}, {'x': 8, 'y': 8, 'value': 10.0}, {'x': 8, 'y': 11, 'value': 9.0}, {'x': 9, 'y': 0, 'value': 7.0}, {'x': 9, 'y': 7, 'value': 10.0}, {'x': 10, 'y': 0, 'value': 12.0}, {'x': 11, 'y': 5, 'value': 7.0}, {'x': 11, 'y': 7, 'value': 12.0}]}
-    mystategy = Stategy('p1')
+    mystategy = Stategy('p1', data)
     print(mystategy.onStep(data))
         
         
