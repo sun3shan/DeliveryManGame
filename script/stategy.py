@@ -125,9 +125,10 @@ class Stategy:
         
 
         
-    def onStep(self, jdata, step, level = 4, no=1):
+    def onStep(self, jdata, step, level = 4, no=1, limitTime=1.0):
         self.starttime = time.time()
         self.step = step
+        self.limitTime = limitTime
         self.get_info(jdata)
         f = open(file_name, 'a')
         f.write('\n1\n')
@@ -274,7 +275,7 @@ class Stategy:
                (self.rival_n_jobs == 10 and step > 20):
                 continue
             target = [{'job': job, 'step':self.own_env.dist[cur_pos][job]}]
-            if level == 0 or (time.time()-self.starttime)>1.0:
+            if level == 0 or (time.time()-self.starttime)>self.limitTime:
                 Target.append(target)
             else:
                 subJobs = list(jobs)
