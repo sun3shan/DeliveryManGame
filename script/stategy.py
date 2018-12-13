@@ -55,7 +55,7 @@ class Stategy:
             self.job_changed = False
     
     def get_info(self, jdata):
-        
+        cur_score = 0
         if self.state == 'init':
             # 判定我和对手所属玩家
             if jdata['player1']['name'] == self.name:
@@ -90,6 +90,7 @@ class Stategy:
             self.state = 'start'
             self.step = 0
         else:
+            cur_score = self.map[self.own_cur_pos]
             # 获取自己和对手的信息
             self.own = jdata[self.own_player]
             self.rival = jdata[self.rival_player]
@@ -114,7 +115,7 @@ class Stategy:
         # 判断自己是否到达第一个目标点
         if len(self.Targets)>0 and self.Targets[0]['job']==self.own_cur_pos:
             self.Targets.pop(0)
-            self.plan_benefit -= self.map[self.own_cur_pos]
+            self.plan_benefit -= cur_score
             
         # 获取地图上包裹位置，并按距离排序
         self.jobs = self.jobsSort(self.jobData)
@@ -138,9 +139,11 @@ class Stategy:
         f.write('Targets:'+str(self.Targets)+'\n')
         f.close()
         # 判断是否回家获取回家路径和长度
+        # 1. 当前点不为家 身上包裹数不为0
+        # 2. 第一个目标点不为家
         if (self.own_cur_pos != self.own_home or self.own_n_jobs != 0 or len(self.Targets)==0) and (len(self.Targets)>0 and self.Targets[0]['job']!=self.own_home):
             self.home_dist = self.own_env.dist[self.own_cur_pos][self.own_home]
-            if self.home_dist== 200 - self.step or self.own_n_jobs == 10:
+            if self.home_dist== 200 - self.step or self.home_dist + 1== 200 - self.step or self.own_n_jobs == 10:
                 self.Targets = [{'job':self.own_home, 'step': self.own_env.dist[self.own_cur_pos][self.own_home]}]
                 _dir = DIR[path2dir(self.own_cur_pos, self.own_env.path[self.own_cur_pos][self.Targets[0]['job']][0])]
                 f = open(file_name, 'a')
@@ -157,7 +160,9 @@ class Stategy:
             # 路径规划
             self.testAssess(level)
         
-        if len(self.Targets)>0 and self.Targets[0]['job']!=self.own_home and self.own_cur_pos!=self.own_home and self.Targets[0]['job']!=self.own_home and (self.own_env.dist[self.own_cur_pos][self.Targets[0]['job']] == self.own_env.dist[self.own_cur_pos][self.own_home] +self.own_env.dist[self.own_home][self.Targets[0]['job']]):           
+        if len(self.Targets)>0 and self.Targets[0]['job']!=self.own_home and \
+           self.own_cur_pos!=self.own_home and \
+           (self.own_env.dist[self.own_cur_pos][self.Targets[0]['job']] == self.own_env.dist[self.own_cur_pos][self.own_home] +self.own_env.dist[self.own_home][self.Targets[0]['job']]):           
 
             self.Targets.insert(0, {'job':self.own_home, 'step': self.own_env.dist[self.own_cur_pos][self.own_home]})
         
@@ -183,12 +188,12 @@ class Stategy:
         # 获取地图获取level个包裹的所有走法和步数
         Targets = self.getAllTargets(self.jobs, self.own_cur_pos, 200-self.step, level = min(level, 10-self.own_n_jobs))
         
-        Benefit = [sum([self.map[t['job']]-t['step'] for t in target]) for target in Targets]
+        Benefit = [sum([self.map[t['job']]/t['step'] for t in target]) for target in Targets]
         
         if len(Benefit)>0:
             maxBenefit = max(Benefit)
             
-            if maxBenefit > self.plan_benefit+10:
+            if maxBenefit > self.plan_benefit:
                 self.Targets = Targets[Benefit.index(maxBenefit)]
                 self.plan_benefit = maxBenefit
         
@@ -210,7 +215,8 @@ class Stategy:
         for job in jobs:
             # 如果当前点——拿到包裹——回家的距离大于剩余步数，不考虑该包裹
             if self.own_env.dist[cur_pos][job] + self.own_env.dist[job][self.own_home] > residualStep or \
-               (self.rival_n_jobs<10 and self.rival_env.dist[self.rival_cur_pos][job] + 10 < step + self.own_env.dist[cur_pos][job]):
+               (self.rival_n_jobs<10 and self.rival_env.dist[self.rival_cur_pos][job] + 10 < step + self.own_env.dist[cur_pos][job]) or \
+               (self.rival_n_jobs == 10 and step > 20):
                 continue
             target = [{'job': job, 'step':self.own_env.dist[cur_pos][job]}]
             if level == 0 or (time.time()-self.starttime)>1.2:

@@ -66,7 +66,7 @@ def main():
 #	seed = int(sys.argv[1])
 #	seed = int(100)
 #	random.seed(seed)
-	app.run(host='0.0.0.0', port=8084)
+	app.run(host='0.0.0.0', port=8081)
 
 if __name__ == '__main__':
     main()

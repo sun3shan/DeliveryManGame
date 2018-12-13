@@ -10,11 +10,11 @@ import json
     
 def http_post():
     url='http://192.168.245.130:5555/competitions'
-    values ={   "name": "test80",
+    values ={   "name": "test1",
                 "player1": "p1",
                 "player2": "p2",
-                "player1_host": "http://192.168.245.1:8082",
-                "player2_host": "http://192.168.245.1:8084",
+                "player1_host": "http://192.168.245.1:8080",
+                "player2_host": "http://192.168.245.1:8081",
                 "seed": 10,
                 }
 
