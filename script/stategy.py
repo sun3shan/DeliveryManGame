@@ -141,7 +141,7 @@ class Stategy:
         # 判断是否回家获取回家路径和长度
         # 1. 当前点不为家 身上包裹数不为0
         # 2. 第一个目标点不为家
-        if (self.own_cur_pos != self.own_home or self.own_n_jobs != 0 or len(self.Targets)==0) and (len(self.Targets)>0 and self.Targets[0]['job']!=self.own_home):
+        if (self.own_cur_pos != self.own_home or self.own_n_jobs != 0) or (len(self.Targets)==0 or self.Targets[0]['job']!=self.own_home):
             self.home_dist = self.own_env.dist[self.own_cur_pos][self.own_home]
             if self.home_dist== 200 - self.step or self.home_dist + 1== 200 - self.step or self.own_n_jobs == 10:
                 self.Targets = [{'job':self.own_home, 'step': self.own_env.dist[self.own_cur_pos][self.own_home]}]
@@ -156,7 +156,7 @@ class Stategy:
         
 
         # 如果地图包裹发生变化 或 没有目标
-        if self.job_changed == True or len(self.Targets)==0:
+        if self.job_changed == True or len(self.Targets)==0 or self.own_env.dist[self.own_cur_pos][self.Targets[0]['job']]>self.rival_env.dist[self.rival_cur_pos][self.Targets[0]['job']]:
             # 路径规划
             self.testAssess(level)
         
@@ -215,11 +215,11 @@ class Stategy:
         for job in jobs:
             # 如果当前点——拿到包裹——回家的距离大于剩余步数，不考虑该包裹
             if self.own_env.dist[cur_pos][job] + self.own_env.dist[job][self.own_home] > residualStep or \
-               (self.rival_n_jobs<10 and self.rival_env.dist[self.rival_cur_pos][job] + 10 < step + self.own_env.dist[cur_pos][job]) or \
+               (self.rival_n_jobs<10 and self.rival_env.dist[self.rival_cur_pos][job] < step + self.own_env.dist[cur_pos][job]) or \
                (self.rival_n_jobs == 10 and step > 20):
                 continue
             target = [{'job': job, 'step':self.own_env.dist[cur_pos][job]}]
-            if level == 0 or (time.time()-self.starttime)>1.2:
+            if level == 0 or (time.time()-self.starttime)>1.0:
                 Target.append(target)
             else:
                 subJobs = list(jobs)

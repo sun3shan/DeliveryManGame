@@ -7,15 +7,16 @@ Created on Sun Dec  9 09:08:58 2018
 
 import requests
 import json
+import random
     
 def http_post():
     url='http://192.168.245.130:5555/competitions'
-    values ={   "name": "test1",
+    values ={   "name": "test10",
                 "player1": "p1",
                 "player2": "p2",
                 "player1_host": "http://192.168.245.1:8080",
                 "player2_host": "http://192.168.245.1:8081",
-                "seed": 10,
+                "seed": 10,#random.randint(0, 65535),
                 }
 
     jdata = json.dumps(values)             # 对数据进行JSON格式化编码

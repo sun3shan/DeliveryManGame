@@ -38,7 +38,7 @@ async def on_step(request):
         print(step)
     try:
         starttime = time.time()
-        mydir = mystategy.onStep(json,9)
+        mydir = mystategy.onStep(json,7)
         print(time.time()-starttime) #random.choice(['S','S','S','S','S'])
         return response.json({'action':mydir})
     except:
