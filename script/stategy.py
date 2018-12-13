@@ -34,7 +34,7 @@ class Stategy:
         self.job_changed = True
         self.home_dist = 0
         self.Targets = []
-        self.plan_benefit = 0
+        self.max_step = 200
         if not(jdata is None):
             self.get_info(jdata)
     
@@ -100,14 +100,10 @@ class Stategy:
             # 更新包裹信息
             self.jobData = jdata['jobs']
             # 步数加1
-            self.step += 1
+#            self.step += 1
 #            if self.own_cur_pos == (self.own['x'], self.own['y']):
             if len(self.Targets)>0:
                 self.Targets[0]['step'] = self.own_env.dist[(self.own['x'], self.own['y'])][self.Targets[0]['job']]
-#                f = open(file_name, 'a')
-#                f.write('result Step:'+str(self.step) + ', Dir:'+DIR[path2dir(self.own_cur_pos, (self.own['x'], self.own['y']))]+'\n')
-#                f.write('result last_pos:'+str(self.own_cur_pos)+', cur_pos:'+ str((self.own['x'], self.own['y'])) + ', want go:' + str(self.own_env.path[self.own_cur_pos][self.Targets[0]['job']][0])+'\n')    
-#                f.close()
         # 获取自己和对手位置坐标
         self.own_cur_pos = (self.own['x'], self.own['y'])
         self.rival_cur_pos = (self.rival['x'], self.rival['y'])
@@ -115,7 +111,6 @@ class Stategy:
         # 判断自己是否到达第一个目标点
         if len(self.Targets)>0 and self.Targets[0]['job']==self.own_cur_pos:
             self.Targets.pop(0)
-            self.plan_benefit -= cur_score
             
         # 获取地图上包裹位置，并按距离排序
         self.jobs = self.jobsSort(self.jobData)
@@ -130,20 +125,22 @@ class Stategy:
         
 
         
-    def onStep(self, jdata, level = 4):
+    def onStep(self, jdata, step, level = 4, no=1):
         self.starttime = time.time()
+        self.step = step
         self.get_info(jdata)
         f = open(file_name, 'a')
-        f.write('1\n')
+        f.write('\n1\n')
+        f.write('Step:'+str(step)+'\n')
         f.write('Data:'+str(jdata)+'\n')
         f.write('Targets:'+str(self.Targets)+'\n')
         f.close()
         # 判断是否回家获取回家路径和长度
         # 1. 当前点不为家 身上包裹数不为0
         # 2. 第一个目标点不为家
-        if (self.own_cur_pos != self.own_home or self.own_n_jobs != 0) or (len(self.Targets)==0 or self.Targets[0]['job']!=self.own_home):
+        if (self.own_cur_pos != self.own_home or self.own_n_jobs != 0) or (len(self.Targets)>0 and self.Targets[0]['job']!=self.own_home):
             self.home_dist = self.own_env.dist[self.own_cur_pos][self.own_home]
-            if self.home_dist== 200 - self.step or self.home_dist + 1== 200 - self.step or self.own_n_jobs == 10:
+            if self.own_n_jobs == 10: # or  self.home_dist== self.max_step - self.step or self.home_dist + 1== self.max_step - self.step:
                 self.Targets = [{'job':self.own_home, 'step': self.own_env.dist[self.own_cur_pos][self.own_home]}]
                 _dir = DIR[path2dir(self.own_cur_pos, self.own_env.path[self.own_cur_pos][self.Targets[0]['job']][0])]
                 f = open(file_name, 'a')
@@ -156,9 +153,14 @@ class Stategy:
         
 
         # 如果地图包裹发生变化 或 没有目标
-        if self.job_changed == True or len(self.Targets)==0 or self.own_env.dist[self.own_cur_pos][self.Targets[0]['job']]>self.rival_env.dist[self.rival_cur_pos][self.Targets[0]['job']]:
+        if self.own_cur_pos==self.own_home or self.job_changed == True or len(self.Targets)==0 or self.own_env.dist[self.own_cur_pos][self.Targets[0]['job']]>self.rival_env.dist[self.rival_cur_pos][self.Targets[0]['job']]:
             # 路径规划
-            self.testAssess(level)
+            if no == 1:
+                self.testAssess(level)
+            elif no == 2:
+                self.testAssess2(level)
+            elif no == 3:
+                self.testAssess3(level)
         
         if len(self.Targets)>0 and self.Targets[0]['job']!=self.own_home and \
            self.own_cur_pos!=self.own_home and \
@@ -166,16 +168,26 @@ class Stategy:
 
             self.Targets.insert(0, {'job':self.own_home, 'step': self.own_env.dist[self.own_cur_pos][self.own_home]})
         
-        if len(self.Targets)==0 or len(self.own_env.path[self.own_cur_pos][self.Targets[0]['job']]) == 0:
-            self.Targets = [{'job':self.jobs[0], 'step':self.own_env.dist[self.own_cur_pos][self.jobs[0]]}]
-            
-        _dir = DIR[path2dir(self.own_cur_pos, self.own_env.path[self.own_cur_pos][self.Targets[0]['job']][0])]
-        
+        if len(self.Targets)==0:
+            f = open(file_name, 'a')
+            f.write('4\n')
+            f.write('own_n_jobs:'+str(self.own_n_jobs)+'\n')
+            f.write('Jobs:'+str(self.jobs)+'\n')
+            f.close()
+            if self.own_n_jobs > 0:
+                self.Targets = [{'job':self.own_home, 'step': self.own_env.dist[self.own_cur_pos][self.own_home]}]
+            elif len(self.own_env.path[self.own_cur_pos][self.jobs[0]]) != 0:
+                self.Targets = [{'job':self.jobs[0], 'step':self.own_env.dist[self.own_cur_pos][self.jobs[0]]}]
         
         f = open(file_name, 'a')
         f.write('3\n')
         f.write('Targets:'+str(self.Targets)+'\n')
         f.write('Path:'+str(self.own_env.path[self.own_cur_pos][self.Targets[0]['job']])+'\n')
+        f.close()
+        _dir = DIR[path2dir(self.own_cur_pos, self.own_env.path[self.own_cur_pos][self.Targets[0]['job']][0])]
+        
+        
+        f = open(file_name, 'a')
         f.write('action Step:'+str(self.step+1) + ', Dir:'+_dir+'\n')
         f.write('cur_pos:'+str(self.own_cur_pos)+', want go:'+str(self.own_env.path[self.own_cur_pos][self.Targets[0]['job']][0])+'\n')
         f.close()
@@ -186,16 +198,59 @@ class Stategy:
         if self.step == 0:
             level = 4
         # 获取地图获取level个包裹的所有走法和步数
-        Targets = self.getAllTargets(self.jobs, self.own_cur_pos, 200-self.step, level = min(level, 10-self.own_n_jobs))
+        Targets = self.getAllTargets(self.jobs, self.own_cur_pos, self.max_step-self.step, level = min(level, 10-self.own_n_jobs))
         
         Benefit = [sum([self.map[t['job']]/t['step'] for t in target]) for target in Targets]
         
         if len(Benefit)>0:
             maxBenefit = max(Benefit)
             
-            if maxBenefit > self.plan_benefit:
-                self.Targets = Targets[Benefit.index(maxBenefit)]
-                self.plan_benefit = maxBenefit
+            self.Targets = Targets[Benefit.index(maxBenefit)]
+    
+    def testAssess2(self, level):
+        if self.step == 0:
+            level = 4
+        # 获取地图获取level个包裹的所有走法和步数
+        Targets = self.getAllTargets(self.jobs, self.own_cur_pos, self.max_step-self.step, level = min(level, 10-self.own_n_jobs))
+        
+        Benefit = [sum([self.map[t['job']] for t in target])/(sum([t['step'] for t in target])+self.own_env.dist[target[-1]['job']][self.own_home]) for target in Targets]
+        
+        if len(Benefit)>0:
+            maxBenefit = max(Benefit)
+            self.Targets = Targets[Benefit.index(maxBenefit)]
+    
+    def testAssess3(self, level):
+        if self.step == 0:
+            level = 4
+        # 获取地图获取level个包裹的所有走法和步数
+        Targets = self.getAllTargets(self.jobs, self.own_cur_pos, self.max_step-self.step, level = min(level, 10-self.own_n_jobs))
+        
+        Benefit1 = []
+        Benefit2 = []
+        maxBenefit1 = 0
+        maxBenefit2 = 0
+        for target in Targets:
+            values = 0
+            steps = 0
+            benefit = 0
+            for t in target:
+                values += self.map[t['job']]
+                steps += t['step']
+                benefit += self.map[t['job']]/t['step']
+            steps += self.own_env.dist[target[-1]['job']][self.own_home]
+            Benefit2.append(values/steps)
+            Benefit1.append(benefit)
+            if maxBenefit1 < Benefit1[-1]:
+                maxBenefit1 = Benefit1[-1]
+            if maxBenefit2 < Benefit2[-1]:
+                maxBenefit2 = Benefit2[-1]
+                
+#        Benefit = [sum([self.map[t['job']]/t['step'] for t in target]) + sum([self.map[t['job']] for t in target])/(sum([t['step'] for t in target])+self.own_env.dist[target[-1]['job']][self.own_home]) for target in Targets]        
+        
+        if len(Benefit1)>0:
+            Benefit = [Benefit1[i]/maxBenefit1+Benefit2[i]/maxBenefit2 for i in range(len(Benefit2))]
+            maxBenefit = max(Benefit)
+            self.Targets = Targets[Benefit.index(maxBenefit)]
         
         
         
@@ -234,12 +289,13 @@ class Stategy:
         
             
 if __name__ == '__main__':
-    data = {'player1': {'name': 'p1', 'x': 5, 'y': 5, 'home_x': 5, 'home_y': 5, 'n_jobs': 0, 'value': 0, 'score': 0}, 'player2': {'name': 'p2', 'x': 6, 'y': 6, 'home_x': 6, 'home_y': 6, 'n_jobs': 10, 'value': 100, 'score': 0}, 'walls': [{'x': 0, 'y': 1}, {'x': 0, 'y': 6}, {'x': 1, 'y': 1}, {'x': 1, 'y': 4}, {'x': 1, 'y': 11}, {'x': 2, 'y': 1}, {'x': 2, 'y': 7}, {'x': 2, 'y': 8}, {'x': 2, 'y': 10}, {'x': 3, 'y': 8}, {'x': 5, 'y': 1}, {'x': 6, 'y': 0}, {'x': 6, 'y': 4}, {'x': 6, 'y': 7}, {'x': 6, 'y': 10}, {'x': 7, 'y': 4}, {'x': 7, 'y': 5}, {'x': 7, 'y': 10}, {'x': 8, 'y': 1}, {'x': 9, 'y': 3}, {'x': 9, 'y': 11}, {'x': 10, 'y': 2}, {'x': 10, 'y': 8}, {'x': 11, 'y': 8}], 'jobs': [{'x': 0, 'y': 2, 'value': 7.0}, {'x': 0, 'y': 8, 'value': 9.0}, {'x': 1, 'y': 3, 'value': 6.0}, {'x': 1, 'y': 5, 'value': 6.0}, {'x': 1, 'y': 9, 'value': 10.0}, {'x': 2, 'y': 4, 'value': 8.0}, {'x': 3, 'y': 9, 'value': 10.0}, {'x': 4, 'y': 0, 'value': 8.0}, {'x': 4, 'y': 4, 'value': 6.0}, {'x': 4, 'y': 5, 'value': 12.0}, {'x': 4, 'y': 8, 'value': 7.0}, {'x': 5, 'y': 0, 'value': 8.0}, {'x': 5, 'y': 3, 'value': 7.0}, {'x': 6, 'y': 2, 'value': 10.0}, {'x': 7, 'y': 0, 'value': 11.0}, {'x': 7, 'y': 6, 'value': 10.0}, {'x': 8, 'y': 5, 'value': 12.0}, {'x': 8, 'y': 8, 'value': 10.0}, {'x': 8, 'y': 11, 'value': 9.0}, {'x': 9, 'y': 0, 'value': 7.0}, {'x': 9, 'y': 7, 'value': 10.0}, {'x': 10, 'y': 0, 'value': 12.0}, {'x': 11, 'y': 5, 'value': 7.0}, {'x': 11, 'y': 7, 'value': 12.0}]}
+    data = {'player1': {'name': 'p1', 'x': 5, 'y': 5, 'home_x': 5, 'home_y': 5, 'n_jobs': 0, 'value': 0, 'score': 573.0}, 'player2': {'name': 'p2', 'x': 8, 'y': 8, 'home_x': 6, 'home_y': 6, 'n_jobs': 1, 'value': 12.0, 'score': 667.0}, 'walls': [{'x': 0, 'y': 1}, {'x': 0, 'y': 6}, {'x': 1, 'y': 1}, {'x': 1, 'y': 4}, {'x': 1, 'y': 11}, {'x': 2, 'y': 1}, {'x': 2, 'y': 7}, {'x': 2, 'y': 8}, {'x': 2, 'y': 10}, {'x': 3, 'y': 8}, {'x': 5, 'y': 1}, {'x': 6, 'y': 0}, {'x': 6, 'y': 4}, {'x': 6, 'y': 7}, {'x': 6, 'y': 10}, {'x': 7, 'y': 4}, {'x': 7, 'y': 5}, {'x': 7, 'y': 10}, {'x': 8, 'y': 1}, {'x': 9, 'y': 3}, {'x': 9, 'y': 11}, {'x': 10, 'y': 2}, {'x': 10, 'y': 8}, {'x': 11, 'y': 8}], 'jobs': [{'x': 0, 'y': 0, 'value': 6.0}, {'x': 0, 'y': 3, 'value': 8.0}, {'x': 0, 'y': 5, 'value': 7.0}, {'x': 0, 'y': 8, 'value': 8.0}, {'x': 0, 'y': 10, 'value': 6.0}, {'x': 0, 'y': 11, 'value': 7.0}, {'x': 1, 'y': 2, 'value': 12.0}, {'x': 1, 'y': 7, 'value': 8.0}, {'x': 1, 'y': 8, 'value': 10.0}, {'x': 1, 'y': 10, 'value': 8.0}, {'x': 2, 'y': 2, 'value': 6.0}, {'x': 4, 'y': 0, 'value': 12.0}, {'x': 5, 'y': 0, 'value': 8.0}, {'x': 6, 'y': 2, 'value': 8.0}, {'x': 6, 'y': 11, 'value': 12.0}, {'x': 7, 'y': 3, 'value': 6.0}, {'x': 7, 'y': 11, 'value': 9.0}, {'x': 8, 'y': 0, 'value': 8.0}, {'x': 8, 'y': 6, 'value': 9.0}, {'x': 10, 'y': 0, 'value': 12.0}, {'x': 10, 'y': 5, 'value': 10.0}, {'x': 10, 'y': 11, 'value': 10.0}, {'x': 11, 'y': 3, 'value': 9.0}, {'x': 11, 'y': 11, 'value': 7.0}]}
     mystategy = Stategy('p1')
     starttime = time.time()
-#    mystategy.Targets = [{'job': (5, 3), 'step': 3}, {'job': (6, 2), 'step': 2}, {'job': (7, 0), 'step': 3}, {'job': (10, 0), 'step': 3}]
-    mystategy.step = 0
-    print(mystategy.onStep(data, 7))
+    mystategy.Targets = []
+    step = 196
+    mystategy.job_changed = False
+    print(mystategy.onStep(data, step-1, 7))
     endtime = time.time()
     print(endtime-starttime)
         

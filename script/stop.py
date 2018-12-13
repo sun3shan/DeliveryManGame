@@ -39,11 +39,11 @@ async def on_step(request):
 #    return response.json({'action':'S'})
     try:
         starttime = time.time()
-        mydir = mystategy.onStep(json,7)
+        mydir = mystategy.onStep(json, step-1, 7, 2)
         print(time.time()-starttime) #random.choice(['S','S','S','S','S'])
         return response.json({'action':mydir})
     except:
-        mydir = mystategy.onStep(json)
+        mydir = mystategy.onStep(json, step-1, 7, 2)
         return response.json({'action':mydir})
         
 
@@ -66,7 +66,7 @@ def main():
 #	seed = int(sys.argv[1])
 #	seed = int(100)
 #	random.seed(seed)
-	app.run(host='0.0.0.0', port=8081)
+	app.run(host='0.0.0.0', port=8082)
 
 if __name__ == '__main__':
     main()

@@ -9,14 +9,14 @@ import requests
 import json
 import random
     
-def http_post():
+def http_post(seed):
     url='http://192.168.245.130:5555/competitions'
     values ={   "name": "test10",
                 "player1": "p1",
                 "player2": "p2",
                 "player1_host": "http://192.168.245.1:8080",
-                "player2_host": "http://192.168.245.1:8081",
-                "seed": 10,#random.randint(0, 65535),
+                "player2_host": "http://192.168.245.1:8082",
+                "seed": seed
                 }
 
     jdata = json.dumps(values)             # 对数据进行JSON格式化编码
@@ -26,5 +26,6 @@ def http_post():
     print (data)
     return
 
-
-http_post()
+if __name__=='__main__':
+#    seed = random.randint(0, 65535)
+    http_post(seed)
