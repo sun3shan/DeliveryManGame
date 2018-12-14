@@ -11,7 +11,7 @@ from sanic import Sanic
 from sanic import response
 import time
 import random
-from stategy import Stategy
+from stategy2 import Stategy
 
 
 step = 0
@@ -39,7 +39,7 @@ async def on_step(request):
 #    return response.json({'action':'S'})
     try:
         starttime = time.time()
-        mydir = mystategy.onStep(json, step-1, 7, 2)
+        mydir = mystategy.onStep(json, step-1, 7, 2, 1.0)
         print(time.time()-starttime) #random.choice(['S','S','S','S','S'])
         return response.json({'action':mydir})
     except:
@@ -59,14 +59,16 @@ async def on_end(request):
         win = int(-1)
     if json['player1']['name'] != myname:
         win = -win
-    print(result[win]+': '+ str(json['player1']['score']) + ' - ' + str(json['player2']['score']))
+        print(result[win]+': '+ str(json['player2']['score']) + ' - ' + str(json['player1']['score']))
+    else:
+        print(result[win]+': '+ str(json['player1']['score']) + ' - ' + str(json['player2']['score']))
     return response.json({})
 
 def main():
 #	seed = int(sys.argv[1])
 #	seed = int(100)
 #	random.seed(seed)
-	app.run(host='0.0.0.0', port=8082)
+	app.run(host='0.0.0.0', port=8081)
 
 if __name__ == '__main__':
     main()
