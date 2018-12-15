@@ -11,11 +11,11 @@ import random
     
 def http_post(seed):
     url='http://192.168.1.163:5555/competitions'
-    values ={   "name": "test01369718-1",
-                "player1": u'奇点',
-                "player2": "p2",
-                "player1_host": "http://192.168.1.27:80",
-                "player2_host": "http://192.168.1.27:8081",
+    values ={   "name": "test01369718-16",
+                "player2": u'奇点',
+                "player1": u'奇点2',
+                "player2_host": "http://192.168.1.27:8080",
+                "player1_host": "http://192.168.1.27:8081",
                 "seed": seed
                 }
 
@@ -28,4 +28,4 @@ def http_post(seed):
 
 if __name__=='__main__':
 #    seed = random.randint(0, 65535)
-    http_post(seed)
+    http_post(3333)

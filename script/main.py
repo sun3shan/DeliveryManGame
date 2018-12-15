@@ -15,7 +15,7 @@ from stategy import Stategy
 
 
 step = 0
-myname = u'奇点'
+myname = u'奇点2'
 mystategy = Stategy(myname)
 app = Sanic(__name__)
 
@@ -38,7 +38,7 @@ async def on_step(request):
         print(step)
     try:
         starttime = time.time()
-        mydir = mystategy.onStep(json, step-1, 7, 2, 1.0)
+        mydir = mystategy.onStep(json, step-1, 7, 2, 1.25)
         print(time.time()-starttime) #random.choice(['S','S','S','S','S'])
         return response.json({'action':mydir})
     except:
@@ -67,7 +67,7 @@ def main():
 #	seed = int(sys.argv[1])
 #	seed = int(100)
 #	random.seed(seed)
-	app.run(host='0.0.0.0', port=80)
+	app.run(host='0.0.0.0', port=8081)
 
 if __name__ == '__main__':
     main()

@@ -71,6 +71,10 @@ class Stategy:
                 self.own_player = 'player2'
                 self.rival_player = 'player1'
                 
+#            f = open(file_name, 'a')
+#            f.write('Player: ' + self.own_player + '\n')
+#            f.close()
+            
             # 获取自己和对手的信息
             self.own = jdata[self.own_player]
             self.rival = jdata[self.rival_player]
@@ -100,7 +104,9 @@ class Stategy:
             self.update_map(jdata['jobs'])
             # 更新包裹信息
             self.jobData = jdata['jobs']
-            # 更新与目标点距离
+            # 步数加1
+#            self.step += 1
+#            if self.own_cur_pos == (self.own['x'], self.own['y']):
             if len(self.Targets)>0:
                 self.Targets[0]['step'] = self.own_env.dist[(self.own['x'], self.own['y'])][self.Targets[0]['job']]
         # 获取自己和对手位置坐标
@@ -132,7 +138,6 @@ class Stategy:
                (self.rival_n_jobs<10 and self.rival_env.dist[self.rival_cur_pos][job] < step + self.own_env.dist[cur_pos][job]) or \
                step>20:
                 continue
-            # benefit = sum(value(job_i))/(sum(step(job_i)) + goHomeStep(job_n)) i = 1...n
             _step = step + self.own_env.dist[cur_pos][job]
             _value = value + self.map[job]
             target = [{'job': job, 'step':self.own_env.dist[cur_pos][job], 'benefit':(_value)/(_step+self.own_env.dist[job][self.own_home])}]
@@ -166,25 +171,13 @@ class Stategy:
         if self.own_cur_pos==self.own_home or self.job_changed == True or len(self.Targets)==0 or self.own_env.dist[self.own_cur_pos][self.Targets[0]['job']]>self.rival_env.dist[self.rival_cur_pos][self.Targets[0]['job']]:
             # 路径规划
             self.getPath()
-            # 搜索不到目标点
             if len(self.Targets)==0:
-                # if n_job>0, then goHome
+                # n_job>0 -> goHome
                 if self.own_n_jobs > 0:
                     self.Targets = [{'job':self.own_home, 'step': self.own_env.dist[self.own_cur_pos][self.own_home]}]
                 # go the nearest job
                 else:
                     self.Targets = [{'job':self.jobs[0], 'step':self.own_env.dist[self.own_cur_pos][self.jobs[0]]}]
-
-        else:
-            if len(self.Targets)>0 and self.Targets[0]['job']!=self.own_home and \
-               self.own_cur_pos!=self.own_home and \
-               (self.own_env.dist[self.own_cur_pos][self.Targets[0]['job']] == self.own_env.dist[self.own_cur_pos][self.own_home] +self.own_env.dist[self.own_home][self.Targets[0]['job']]):           
-    
-                self.Targets.insert(0, {'job':self.own_home, 'step': self.own_env.dist[self.own_cur_pos][self.own_home]})
-            
-            # 判断当前点回家效益是否更优
-            if self.Targets[0]['job']!=self.own_home and self.own_n_jobs > 7 and self.home_dist<self.Targets[0]['step']:
-                self.canIGoHome()
                 
         if len(self.Targets)>0 and self.Targets[0]['job']!=self.own_home and \
            self.own_cur_pos!=self.own_home and \
@@ -205,12 +198,8 @@ class Stategy:
         if len(Benefit)>0:
             maxBenefit = max(Benefit)
             newTargets = Targets[Benefit.index(maxBenefit)]
-#            new_benefit = np.sqrt((self.own_value)/(self.home_dist) * maxBenefit)
-
-            new_benefit = (self.own_value + sum([self.map[target['job']] for target in self.Targets]))/(self.home_dist + sum([target['step'] for target in self.Targets])+self.own_env.dist[self.Targets[-1]['job']][self.own_home])
+            new_benefit = np.sqrt((self.own_value)/(self.home_dist) * maxBenefit)
             old_benefit = (self.own_value + sum([self.map[target['job']] for target in newTargets]))/(sum([target['step'] for target in self.Targets])+self.own_env.dist[newTargets[-1]['job']][self.own_home])
-#            new_benefit = (sum([self.map[target['job']] for target in self.Targets]))/(sum([target['step'] for target in self.Targets])+self.own_env.dist[self.Targets[-1]['job']][self.own_home])
-#            old_benefit = (sum([self.map[target['job']] for target in newTargets]))/(sum([target['step'] for target in self.Targets])+self.own_env.dist[newTargets[-1]['job']][self.own_home])
             if new_benefit > old_benefit:
                 self.Targets = newTargets
                 self.Targets.insert(0, {'job':self.own_home, 'step': self.home_dist})

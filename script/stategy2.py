@@ -11,7 +11,7 @@ import time
 from Environment import Environment
 map_shape = (12, 12)
 DIR = ['U', 'D', 'L', 'R', 'S']
-file_name = time.strftime('%Y%m%d-%H%M%S-result.txt')
+#file_name = time.strftime('%Y%m%d-%H%M%S-result.txt')
 def path2dir(cur_pos, next_pos):
     dx = next_pos[0] - cur_pos[0]
     dy = next_pos[1] - cur_pos[1]
@@ -54,6 +54,34 @@ class Stategy:
         else:
             self.job_changed = False
     
+    def jobsSort(self, jobData):
+        jobs = [(job['x'], job['y']) for job in jobData if self.own_env.dist[self.own_cur_pos][(job['x'], job['y'])]<1000]
+        steps = dict(sorted({job: self.own_env.dist[self.own_cur_pos][job] for job in jobs}.items(), key=lambda x:x[1]))
+        return tuple(steps.keys())
+    
+    def getAllTargets(self, jobs, cur_pos, residualStep=10, step = 0, level=0):
+        Target = []
+        target = []
+        i = 0
+        for job in jobs:
+            # 如果当前点——拿到包裹——回家的距离大于剩余步数，不考虑该包裹
+            if self.own_env.dist[cur_pos][job] + self.own_env.dist[job][self.own_home] > residualStep or \
+               (self.rival_n_jobs<10 and self.rival_env.dist[self.rival_cur_pos][job] < step + self.own_env.dist[cur_pos][job]) or \
+               (self.rival_n_jobs == 10 and step > 20):
+                continue
+            target = [{'job': job, 'step':self.own_env.dist[cur_pos][job]}]
+            if level == 0 or (time.time()-self.starttime)>self.limitTime:
+                Target.append(target)
+            else:
+                subJobs = list(jobs)
+                subJobs.remove(job)
+                for item in self.getAllTargets(subJobs, job, residualStep - self.own_env.dist[cur_pos][job], step + self.own_env.dist[cur_pos][job], level=level-1):
+                    Target.append(list(target))
+                    Target[-1].extend(item)
+                Target.append(list(target))
+            i += 1
+        return Target
+    
     def get_info(self, jdata):
         cur_score = 0
         if self.state == 'init':
@@ -64,11 +92,7 @@ class Stategy:
             else:
                 self.own_player = 'player2'
                 self.rival_player = 'player1'
-                
-            f = open(file_name, 'a')
-            f.write('Player: ' + self.own_player + '\n')
-            f.close()
-            
+                            
             # 获取自己和对手的信息
             self.own = jdata[self.own_player]
             self.rival = jdata[self.rival_player]
@@ -130,12 +154,6 @@ class Stategy:
         self.step = step
         self.limitTime = limitTime
         self.get_info(jdata)
-        f = open(file_name, 'a')
-        f.write('\n1\n')
-        f.write('Step:'+str(step)+'\n')
-        f.write('Data:'+str(jdata)+'\n')
-        f.write('Targets:'+str(self.Targets)+'\n')
-        f.close()
         # 判断是否回家获取回家路径和长度
         # 1. 当前点不为家 身上包裹数不为0
         # 2. 第一个目标点不为家
@@ -144,12 +162,6 @@ class Stategy:
             if self.own_n_jobs == 10: # or  self.home_dist== self.max_step - self.step or self.home_dist + 1== self.max_step - self.step:
                 self.Targets = [{'job':self.own_home, 'step': self.own_env.dist[self.own_cur_pos][self.own_home]}]
                 _dir = DIR[path2dir(self.own_cur_pos, self.own_env.path[self.own_cur_pos][self.Targets[0]['job']][0])]
-                f = open(file_name, 'a')
-                f.write('2\n')
-                f.write('Targets:'+str(self.Targets)+'\n')
-                f.write('action Step:'+str(self.step+1) + ', Dir:'+_dir+'\n')
-                f.write('cur_pos:'+str(self.own_cur_pos)+', want go:'+str(self.own_env.path[self.own_cur_pos][self.Targets[0]['job']][0])+'\n')
-                f.close()
                 return _dir
         
 
@@ -170,28 +182,14 @@ class Stategy:
             self.Targets.insert(0, {'job':self.own_home, 'step': self.own_env.dist[self.own_cur_pos][self.own_home]})
         
         if len(self.Targets)==0:
-            f = open(file_name, 'a')
-            f.write('4\n')
-            f.write('own_n_jobs:'+str(self.own_n_jobs)+'\n')
-            f.write('Jobs:'+str(self.jobs)+'\n')
-            f.close()
             if self.own_n_jobs > 0:
                 self.Targets = [{'job':self.own_home, 'step': self.own_env.dist[self.own_cur_pos][self.own_home]}]
             elif len(self.own_env.path[self.own_cur_pos][self.jobs[0]]) != 0:
                 self.Targets = [{'job':self.jobs[0], 'step':self.own_env.dist[self.own_cur_pos][self.jobs[0]]}]
         
-        f = open(file_name, 'a')
-        f.write('3\n')
-        f.write('Targets:'+str(self.Targets)+'\n')
-        f.write('Path:'+str(self.own_env.path[self.own_cur_pos][self.Targets[0]['job']])+'\n')
-        f.close()
         _dir = DIR[path2dir(self.own_cur_pos, self.own_env.path[self.own_cur_pos][self.Targets[0]['job']][0])]
         
         
-        f = open(file_name, 'a')
-        f.write('action Step:'+str(self.step+1) + ', Dir:'+_dir+'\n')
-        f.write('cur_pos:'+str(self.own_cur_pos)+', want go:'+str(self.own_env.path[self.own_cur_pos][self.Targets[0]['job']][0])+'\n')
-        f.close()
         return _dir
 
           
@@ -259,33 +257,6 @@ class Stategy:
             
         
     
-    def jobsSort(self, jobData):
-        jobs = [(job['x'], job['y']) for job in jobData]
-        steps = dict(sorted({job: self.own_env.dist[self.own_cur_pos][job] for job in jobs}.items(), key=lambda x:x[1]))
-        return tuple(steps.keys())
-    
-    def getAllTargets(self, jobs, cur_pos, residualStep=10, step = 0, level=0):
-        Target = []
-        target = []
-        i = 0
-        for job in jobs:
-            # 如果当前点——拿到包裹——回家的距离大于剩余步数，不考虑该包裹
-            if self.own_env.dist[cur_pos][job] + self.own_env.dist[job][self.own_home] > residualStep or \
-               (self.rival_n_jobs<10 and self.rival_env.dist[self.rival_cur_pos][job] < step + self.own_env.dist[cur_pos][job]) or \
-               (self.rival_n_jobs == 10 and step > 20):
-                continue
-            target = [{'job': job, 'step':self.own_env.dist[cur_pos][job]}]
-            if level == 0 or (time.time()-self.starttime)>self.limitTime:
-                Target.append(target)
-            else:
-                subJobs = list(jobs)
-                subJobs.remove(job)
-                for item in self.getAllTargets(subJobs, job, residualStep - self.own_env.dist[cur_pos][job], step + self.own_env.dist[cur_pos][job], level=level-1):
-                    Target.append(list(target))
-                    Target[-1].extend(item)
-                Target.append(list(target))
-            i += 1
-        return Target
         
         
             

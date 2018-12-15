@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Dec 10 23:21:33 2018
+Created on Sun Dec  9 09:00:52 2018
 
 @author: 01369718
 """
@@ -11,11 +11,12 @@ from sanic import Sanic
 from sanic import response
 import time
 import random
-from stategy2 import Stategy
+from stategy_no_goHome import Stategy
 
 
 step = 0
 myname = u'奇点'
+mystategy = Stategy(myname)
 app = Sanic(__name__)
 
 
@@ -29,22 +30,20 @@ async def on_start(request):
     return response.json({})
 
 @app.route('/step',methods=["POST"])
-
 async def on_step(request):
     global step, mystategy, json, mydir
     json = request.json
     step += 1
     if step%10 == 0:
         print(step)
-#    return response.json({'action':'S'})
     try:
         starttime = time.time()
-        mydir = mystategy.onStep(json, step-1, 7, 2, 0.9)
+        mydir = mystategy.onStep(json, step-1, 7, 2, 1.25)
         print(time.time()-starttime) #random.choice(['S','S','S','S','S'])
         return response.json({'action':mydir})
     except:
-#        mydir = mystategy.onStep(json, step-1, 7, 2)
-        return response.json({'action':'S'})
+        mydir = mystategy.onStep(json, step-1, 7, 2, 0.8)
+        return response.json({'action':mydir})
         
 
 @app.route('/end',methods=["POST"])
@@ -72,3 +71,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
